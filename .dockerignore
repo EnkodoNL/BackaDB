@@ -1,0 +1,56 @@
+# Git
+.git
+.github
+.gitignore
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# TypeScript (keep these for build stage)
+# src
+# tsconfig.json
+
+# Tests
+tests
+*.test.ts
+jest.config.js
+
+# Editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+
+# Backup files
+backups
+
+# Docker files
+docker-compose.yml
+
+# Environment variables
+.env
+.env.*
+
+# Documentation
+README.md
+LICENSE
+CHANGELOG.md
+
+# CI/CD files
+.travis.yml
+.gitlab-ci.yml
+
+# NPM files
+.npmrc
+.npmignore

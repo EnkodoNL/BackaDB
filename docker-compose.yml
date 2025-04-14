@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  backadb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Database Connection
+      DB_TYPE: mariadb
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_DATABASES: all
+
+      # Backup Configuration
+      BACKUP_SCHEDULE: '0 1 * * *'
+      BACKUP_FORMAT: sql
+      BACKUP_ENCRYPT: 'false'
+      BACKUP_ON_STARTUP: 'true'
+
+      # Storage Configuration
+      STORAGE_TYPE: local
+      STORAGE_PATH: /backups
+
+      # Retention Policy
+      RETENTION_ENABLED: 'false' # Set to "true" to enable retention policy
+      RETENTION_STRATEGY: count
+      RETENTION_COUNT: 7
+      RETENTION_DAYS: 30
+      RETENTION_DAILY: 7
+      RETENTION_WEEKLY: 4
+      RETENTION_MONTHLY: 3
+
+      # Notification Configuration
+      NOTIFICATION_HTTP: 'true'
+      NOTIFICATION_HTTP_PORT: 8080
+      NOTIFICATION_HTTP_PATH: /health
+    volumes:
+      - backups:/backups
+    ports:
+      - '8080:8080'
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: testdb
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - '3306:3306'
+    restart: unless-stopped
+
+volumes:
+  backups:
+  mariadb_data:

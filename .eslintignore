@@ -1,0 +1,19 @@
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Test coverage
+coverage/
+
+# Configuration files
+jest.config.js
+.eslintrc.js
+
+# Temporary files
+tmp/
+temp/
+
+# Backup files
+backups/

@@ -1,0 +1,34 @@
+Business Source License 1.1
+
+Licensor: Enkodo (https://enkodo.app)
+Licensed Work: BackaDB
+Licensor’s Website: https://enkodo.app
+Change License: None
+Change Date: None
+
+Terms
+
+The Licensed Work is provided under the terms of the Business Source License 1.1 (the “License”). The use of the Licensed Work is governed by the terms set forth below and in the full license text, which is incorporated herein by reference.
+
+Grant of Rights
+
+Subject to the conditions below, the Licensor grants you a non-exclusive, non-transferable, worldwide, royalty-free right to use, copy, modify, and distribute the Licensed Work, under the following conditions:
+
+1. **Permitted Users**:
+
+   - Individuals using the software for personal or freelance use.
+   - Companies or organizations with fewer than 2 full-time employees **and** annual gross revenue below €100,000.
+
+2. **Prohibited Use**:
+
+   - Use of the Licensed Work in a hosted or Software-as-a-Service (SaaS) capacity.
+   - Use by cloud service providers or in infrastructure intended for resale or redistribution.
+   - Use by any organization exceeding the limits stated above, without obtaining a commercial license from the Licensor.
+
+3. **Commercial Licensing**:
+   For commercial use beyond these limits, including hosting or cloud offerings, please contact the Licensor to obtain a commercial license.
+
+4. **Change License**:
+   There is **no automatic license change date**. The Licensed Work remains under the Business Source License indefinitely unless otherwise stated by the Licensor.
+
+Full license text available at: https://mariadb.com/bsl11/

@@ -1,0 +1,48 @@
+# Source files
+src/
+
+# Test files
+tests/
+*.test.ts
+jest.config.js
+
+# Configuration files
+.eslintrc.js
+.eslintignore
+tsconfig.json
+
+# GitHub files
+.github/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Backup files
+backups/
+
+# Git files
+.git/
+.gitignore
+
+# CI/CD files
+.travis.yml
+.gitlab-ci.yml
+
+# Environment variables
+.env
+.env.*

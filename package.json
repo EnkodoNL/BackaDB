@@ -1,0 +1,54 @@
+{
+  "name": "backadb",
+  "version": "1.0.0",
+  "description": "A generic database backup solution with support for multiple storage providers",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "database",
+    "backup",
+    "mariadb",
+    "docker",
+    "s3",
+    "google-drive",
+    "nextcloud"
+  ],
+  "author": "Sebastiaan Pasma <sebastiaan@enkodo.app> (https://enkodo.app)",
+  "license": "BSL 1.1",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.x",
+    "archiver": "^5.x",
+    "archiver-zip-encrypted": "^2.0.0",
+    "axios": "^1.x",
+    "cron": "^2.x",
+    "dotenv": "^16.x",
+    "express": "^4.x",
+    "googleapis": "^118.x",
+    "mysql2": "^3.x",
+    "uuid": "^9.x",
+    "winston": "^3.x"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3",
+    "@types/archiver": "^5.x",
+    "@types/cron": "^2.x",
+    "@types/express": "^4.x",
+    "@types/jest": "^29.x",
+    "@types/node": "^18.x",
+    "@types/uuid": "^9.x",
+    "@typescript-eslint/eslint-plugin": "^5.x",
+    "@typescript-eslint/parser": "^5.x",
+    "eslint": "^8.x",
+    "jest": "^29.x",
+    "ts-jest": "^29.x",
+    "ts-node": "^10.x",
+    "typescript": "^5.x"
+  }
+}
