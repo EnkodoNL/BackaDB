@@ -12,7 +12,7 @@
 We take the security of this project seriously. If you believe you have found a security vulnerability, please follow these steps:
 
 1. **Do not disclose the vulnerability publicly**
-2. **Email the details to security@example.com**
+2. **Email the details to sebastiaan@enkodo.app**
 
    - Provide a detailed description of the vulnerability
    - Include steps to reproduce the issue
