@@ -35,4 +35,4 @@ backups/
 Thumbs.db
 
 # Other files
-*.sh
+/*.sh
