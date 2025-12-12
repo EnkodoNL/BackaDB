@@ -361,7 +361,7 @@ export class S3StorageProvider implements StorageProvider {
 
         return true;
       } catch (error: any) {
-        if (error.name === 'NotFound') {
+        if (error?.name === 'NotFound') {
           return false;
         }
         throw error;

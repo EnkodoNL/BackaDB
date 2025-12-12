@@ -1,14 +1,14 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { compressFile, decompressFile } from "../../src/utils/compression";
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { compressFile, decompressFile } from '../../src/utils/compression';
 
-describe("Compression Utils", () => {
+describe('Compression Utils', () => {
   let tempDir: string;
   let testFile: string;
   let compressedFile: string;
   let decompressedFile: string;
-  const testContent = "This is a test file content for compression testing.";
+  const testContent = 'This is a test file content for compression testing.';
 
   beforeAll(async () => {
     // Create temporary directory for test files
@@ -16,12 +16,12 @@ describe("Compression Utils", () => {
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Create test file
-    testFile = path.join(tempDir, "test-file.txt");
+    testFile = path.join(tempDir, 'test-file.txt');
     fs.writeFileSync(testFile, testContent);
 
     // Define paths for compressed and decompressed files
-    compressedFile = path.join(tempDir, "compressed-file.gz");
-    decompressedFile = path.join(tempDir, "decompressed-file.txt");
+    compressedFile = path.join(tempDir, 'compressed-file.gz');
+    decompressedFile = path.join(tempDir, 'decompressed-file.txt');
   });
 
   afterAll(() => {
@@ -34,7 +34,7 @@ describe("Compression Utils", () => {
     if (fs.existsSync(tempDir)) fs.rmdirSync(tempDir);
   });
 
-  it("should compress and decompress a file correctly", async () => {
+  it('should compress and decompress a file correctly', async () => {
     // Compress the file
     await compressFile(testFile, compressedFile);
 
@@ -48,18 +48,18 @@ describe("Compression Utils", () => {
     await decompressFile(compressedFile, decompressedFile);
 
     // Verify decompressed content matches original
-    const decompressedContent = fs.readFileSync(decompressedFile, "utf8");
+    const decompressedContent = fs.readFileSync(decompressedFile, 'utf8');
     expect(decompressedContent).toEqual(testContent);
   });
 
-  it("should throw an error when decompressing an invalid file", async () => {
+  it('should throw an error when decompressing an invalid file', async () => {
     // Create an invalid compressed file
-    const invalidFile = path.join(tempDir, "invalid.gz");
-    fs.writeFileSync(invalidFile, "This is not a valid gzip file");
+    const invalidFile = path.join(tempDir, 'invalid.gz');
+    fs.writeFileSync(invalidFile, 'This is not a valid gzip file');
 
     // Attempt to decompress the invalid file
     await expect(
-      decompressFile(invalidFile, decompressedFile)
+      decompressFile(invalidFile, decompressedFile),
     ).rejects.toThrow();
 
     // Clean up

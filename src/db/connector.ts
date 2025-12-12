@@ -1,3 +1,5 @@
+import { DatabaseConfig } from '../config';
+
 /**
  * Database connector interface
  * This interface defines the methods that all database connectors must implement
@@ -52,5 +54,5 @@ export interface DatabaseConnectorFactory {
    * @param config Database configuration
    * @returns Database connector instance
    */
-  createConnector(config: any): DatabaseConnector;
+  createConnector(config: DatabaseConfig): DatabaseConnector;
 }

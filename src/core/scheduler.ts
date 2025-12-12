@@ -45,7 +45,7 @@ export class Scheduler {
         },
         null, // onComplete
         true, // start
-        'UTC', // timeZone
+        process?.env?.TZ || 'UTC', // timezone
       );
 
       logger.info('Scheduler started');

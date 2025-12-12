@@ -76,10 +76,14 @@ export class MariaDBConnector implements DatabaseConnector {
         await this.connect();
       }
 
-      const [rows] = await this.connection!.query('SHOW DATABASES');
+      const [rows] = this.connection
+        ? await this.connection.query('SHOW DATABASES')
+        : [[], []];
+
+      type SHOW_DB_ROWS = { Database: string };
 
       // Filter out system databases
-      const databases = (rows as any[])
+      const databases = (rows as SHOW_DB_ROWS[])
         .map((row) => row.Database)
         .filter(
           (name) =>
@@ -113,9 +117,9 @@ export class MariaDBConnector implements DatabaseConnector {
         await this.connect();
       }
 
-      const [rows] = await this.connection!.query('SHOW DATABASES LIKE ?', [
-        database,
-      ]);
+      const [rows] = this.connection
+        ? await this.connection.query('SHOW DATABASES LIKE ?', [database])
+        : [[], []];
 
       return (rows as any[]).length > 0;
     } catch (error) {
@@ -180,9 +184,11 @@ export class MariaDBConnector implements DatabaseConnector {
 
       if (!exists) {
         logger.info(`Creating database: ${database}`);
-        await this.connection!.query(
-          `CREATE DATABASE IF NOT EXISTS \`${database}\``,
-        );
+        if (this.connection) {
+          await this.connection.query(
+            `CREATE DATABASE IF NOT EXISTS \`${database}\``,
+          );
+        }
       }
 
       // Use the mysql command to restore the database
