@@ -112,13 +112,21 @@ NEXTCLOUD_FOLDER=
 ### Retention Policy
 
 ```
-RETENTION_STRATEGY=count  # count or time
-RETENTION_COUNT=7  # keep last 7 backups
-RETENTION_DAYS=30  # keep backups for 30 days
-RETENTION_DAILY=7  # keep 7 daily backups
-RETENTION_WEEKLY=4  # keep 4 weekly backups
-RETENTION_MONTHLY=3  # keep 3 monthly backups
+RETENTION_ENABLED=false  # set to true to enable retention
+RETENTION_STRATEGY=count  # count, time, first or gfs
+RETENTION_COUNT=7  # count: keep the newest 7 backups
+RETENTION_DAYS=30  # time: keep backups for 30 days
+RETENTION_DAILY=7  # gfs: keep 7 daily backups
+RETENTION_WEEKLY=4  # gfs: keep 4 weekly backups (taken on a Sunday)
+RETENTION_MONTHLY=3  # gfs: keep 3 monthly backups (taken on the 1st)
 ```
+
+- `count` keeps the newest `RETENTION_COUNT` backups
+- `time` keeps backups younger than `RETENTION_DAYS`
+- `first` applies `count` and `time` and deletes a backup as soon as either limit is reached
+- `gfs` (grandfather-father-son) keeps the newest `RETENTION_DAILY`, `RETENTION_WEEKLY` and `RETENTION_MONTHLY` backups of each type
+
+Days are determined in UTC. Files in the backup folder that do not match the backup name format are never deleted.
 
 ### Notification Configuration
 

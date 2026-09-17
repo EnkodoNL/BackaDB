@@ -26,7 +26,7 @@ services:
 
       # Retention Policy
       RETENTION_ENABLED: 'false' # Set to "true" to enable retention policy
-      RETENTION_STRATEGY: count
+      RETENTION_STRATEGY: count # count, time, first or gfs
       RETENTION_COUNT: 7
       RETENTION_DAYS: 30
       RETENTION_DAILY: 7

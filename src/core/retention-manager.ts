@@ -9,9 +9,13 @@ import logger from '../utils/logger';
 interface BackupFile {
   path: string;
   timestamp: Date;
-  database: string;
-  type: 'daily' | 'weekly' | 'monthly' | 'unknown';
+  type: 'daily' | 'weekly' | 'monthly';
 }
+
+// Matches the part after `${database}_` as written by the backup engine:
+// YYYY-MM-DDTHH-MM-SS.sql[.zip] (UTC, from Date.toISOString)
+const BACKUP_TIMESTAMP_PATTERN =
+  /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})\.sql(\.[a-z0-9]+)*$/i;
 
 /**
  * Retention manager
@@ -35,31 +39,54 @@ export class RetentionManager {
    * Apply retention policy
    * @param database Database name
    * @param backupDir Directory containing backups
+   * @param now Reference time for age calculations
    */
   async applyRetentionPolicy(
     database: string,
     backupDir: string,
+    now: Date = new Date(),
   ): Promise<void> {
     try {
-      logger.info(`Applying retention policy for database: ${database}`);
+      logger.info(
+        `Applying ${this.config.strategy} retention policy for database: ${database}`,
+      );
 
-      // List all backup files
       const files = await this.storageProvider.listFiles(backupDir);
-
-      // Parse backup files
       const backupFiles = this.parseBackupFiles(files, database);
 
-      // Sort backup files by timestamp (newest first)
+      // Newest first
       backupFiles.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      // Apply retention policy based on strategy
-      if (this.config.strategy === 'count') {
-        await this.applyCountBasedRetention(backupFiles);
-      } else {
-        await this.applyTimeBasedRetention(backupFiles);
+      let selected: string[];
+      switch (this.config.strategy) {
+        case 'count':
+          selected = this.selectByCount(backupFiles);
+          break;
+        case 'time':
+          selected = this.selectByTime(backupFiles, now);
+          break;
+        case 'first':
+          selected = [
+            ...this.selectByCount(backupFiles),
+            ...this.selectByTime(backupFiles, now),
+          ];
+          break;
+        case 'gfs':
+          selected = this.selectByGfs(backupFiles);
+          break;
+      }
+      const expired = new Set(selected);
+
+      for (const file of backupFiles) {
+        if (expired.has(file.path)) {
+          logger.info(`Deleting backup file: ${file.path}`);
+          await this.storageProvider.deleteFile(file.path);
+        }
       }
 
-      logger.info(`Retention policy applied for database: ${database}`);
+      logger.info(
+        `Retention policy applied for database: ${database} (${expired.size} of ${backupFiles.length} deleted)`,
+      );
     } catch (error) {
       logger.error(`Error applying retention policy: ${error}`);
       throw error;
@@ -67,147 +94,91 @@ export class RetentionManager {
   }
 
   /**
-   * Parse backup files
+   * Parse backup files for a database
+   * Files that do not match the expected name format are skipped and never deleted.
    * @param files Array of file paths
    * @param database Database name
    * @returns Array of backup file information
    */
   private parseBackupFiles(files: string[], database: string): BackupFile[] {
-    // Filter files for the specified database
-    const databaseFiles = files.filter((file) => {
-      // Check if the file is in a directory with the database name
-      // or if the file name starts with the database name
-      const dirName = path.dirname(file);
+    const prefix = `${database}_`;
+    const backupFiles: BackupFile[] = [];
+
+    for (const file of files) {
       const fileName = path.basename(file);
-      const dbDirName = path.basename(dirName);
-
-      return (
-        (dbDirName === database && fileName.startsWith(`${database}_`)) ||
-        fileName.startsWith(`${database}_`)
-      );
-    });
-
-    // Parse file information
-    return databaseFiles.map((file) => {
-      const fileName = path.basename(file);
-      const parts = fileName.split('_');
-
-      // Expected format: database_YYYY-MM-DD_HH-MM-SS.sql[.gz][.enc]
-      if (parts.length >= 3) {
-        const dateStr = parts[1];
-        const timeStr = parts[2].split('.')[0]; // Remove extension
-
-        const timestamp = new Date(`${dateStr}T${timeStr.replace(/-/g, ':')}`);
-
-        // Determine backup type
-        let type: 'daily' | 'weekly' | 'monthly';
-
-        // Check if it's a monthly backup (1st day of the month)
-        if (timestamp.getDate() === 1) {
-          type = 'monthly';
-        }
-        // Check if it's a weekly backup (Sunday)
-        else if (timestamp.getDay() === 0) {
-          type = 'weekly';
-        }
-        // Otherwise it's a daily backup
-        else {
-          type = 'daily';
-        }
-
-        return {
-          path: file,
-          timestamp,
-          database,
-          type,
-        };
+      if (!fileName.startsWith(prefix)) {
+        continue;
       }
 
-      // If the file name doesn't match the expected format, return with unknown type
-      return {
-        path: file,
-        timestamp: new Date(0), // Epoch time
-        database,
-        type: 'unknown',
-      };
-    });
+      const match = BACKUP_TIMESTAMP_PATTERN.exec(
+        fileName.slice(prefix.length),
+      );
+      const timestamp = match
+        ? new Date(`${match[1]}T${match[2]}:${match[3]}:${match[4]}Z`)
+        : null;
+
+      if (!timestamp || Number.isNaN(timestamp.getTime())) {
+        logger.warn(`Skipping file with unrecognized name: ${file}`);
+        continue;
+      }
+
+      let type: BackupFile['type'];
+      if (timestamp.getUTCDate() === 1) {
+        type = 'monthly';
+      } else if (timestamp.getUTCDay() === 0) {
+        type = 'weekly';
+      } else {
+        type = 'daily';
+      }
+
+      backupFiles.push({ path: file, timestamp, type });
+    }
+
+    return backupFiles;
   }
 
   /**
-   * Apply count-based retention policy
-   * @param backupFiles Array of backup file information
+   * Select all files except the newest N
+   * @param backupFiles Backup files sorted newest first
+   * @returns Paths of files to delete
    */
-  private async applyCountBasedRetention(
-    backupFiles: BackupFile[],
-  ): Promise<void> {
-    try {
-      logger.info('Applying count-based retention policy');
-
-      // Group backup files by type
-      const daily = backupFiles.filter((file) => file.type === 'daily');
-      const weekly = backupFiles.filter((file) => file.type === 'weekly');
-      const monthly = backupFiles.filter((file) => file.type === 'monthly');
-
-      // Keep the specified number of backups for each type
-      const filesToKeep = new Set<string>();
-
-      // Keep daily backups
-      daily.slice(0, this.config.daily).forEach((file) => {
-        filesToKeep.add(file.path);
-      });
-
-      // Keep weekly backups
-      weekly.slice(0, this.config.weekly).forEach((file) => {
-        filesToKeep.add(file.path);
-      });
-
-      // Keep monthly backups
-      monthly.slice(0, this.config.monthly).forEach((file) => {
-        filesToKeep.add(file.path);
-      });
-
-      // Delete files that are not in the keep set
-      for (const file of backupFiles) {
-        if (!filesToKeep.has(file.path)) {
-          logger.info(`Deleting backup file: ${file.path}`);
-          await this.storageProvider.deleteFile(file.path);
-        }
-      }
-
-      logger.info('Count-based retention policy applied');
-    } catch (error) {
-      logger.error(`Error applying count-based retention policy: ${error}`);
-      throw error;
-    }
+  private selectByCount(backupFiles: BackupFile[]): string[] {
+    return backupFiles.slice(this.config.count).map((file) => file.path);
   }
 
   /**
-   * Apply time-based retention policy
-   * @param backupFiles Array of backup file information
+   * Select files that exceed the daily, weekly and monthly counts
+   * @param backupFiles Backup files sorted newest first
+   * @returns Paths of files to delete
    */
-  private async applyTimeBasedRetention(
-    backupFiles: BackupFile[],
-  ): Promise<void> {
-    try {
-      logger.info('Applying time-based retention policy');
+  private selectByGfs(backupFiles: BackupFile[]): string[] {
+    const limits: Record<BackupFile['type'], number> = {
+      daily: this.config.daily,
+      weekly: this.config.weekly,
+      monthly: this.config.monthly,
+    };
 
-      const now = new Date();
-      const cutoffDate = new Date(
-        now.getTime() - this.config.days * 24 * 60 * 60 * 1000,
-      );
+    return (Object.keys(limits) as BackupFile['type'][]).flatMap((type) =>
+      backupFiles
+        .filter((file) => file.type === type)
+        .slice(limits[type])
+        .map((file) => file.path),
+    );
+  }
 
-      // Delete files older than the cutoff date
-      for (const file of backupFiles) {
-        if (file.timestamp < cutoffDate) {
-          logger.info(`Deleting backup file: ${file.path}`);
-          await this.storageProvider.deleteFile(file.path);
-        }
-      }
+  /**
+   * Select files older than the configured number of days
+   * @param backupFiles Backup files
+   * @param now Reference time
+   * @returns Paths of files to delete
+   */
+  private selectByTime(backupFiles: BackupFile[], now: Date): string[] {
+    const cutoffDate = new Date(
+      now.getTime() - this.config.days * 24 * 60 * 60 * 1000,
+    );
 
-      logger.info('Time-based retention policy applied');
-    } catch (error) {
-      logger.error(`Error applying time-based retention policy: ${error}`);
-      throw error;
-    }
+    return backupFiles
+      .filter((file) => file.timestamp < cutoffDate)
+      .map((file) => file.path);
   }
 }

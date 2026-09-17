@@ -68,11 +68,21 @@ export interface NextCloudConfig {
 }
 
 /**
+ * Retention strategy
+ * - count: keep the newest N backups
+ * - time: keep backups younger than a number of days
+ * - first: delete a backup as soon as either the count or the time limit is reached
+ * - gfs: keep a number of daily, weekly and monthly backups
+ */
+export const RETENTION_STRATEGIES = ['count', 'time', 'first', 'gfs'] as const;
+export type RetentionStrategy = (typeof RETENTION_STRATEGIES)[number];
+
+/**
  * Retention configuration
  */
 export interface RetentionConfig {
   enabled: boolean;
-  strategy: 'count' | 'time';
+  strategy: RetentionStrategy;
   count: number;
   days: number;
   daily: number;
@@ -198,15 +208,39 @@ function getNextCloudConfig(): NextCloudConfig | undefined {
  * Get retention configuration from environment variables
  */
 function getRetentionConfig(): RetentionConfig {
+  const strategy = process.env.RETENTION_STRATEGY || 'count';
+  if (!(RETENTION_STRATEGIES as readonly string[]).includes(strategy)) {
+    throw new Error(
+      `Invalid RETENTION_STRATEGY "${strategy}", expected one of: ${RETENTION_STRATEGIES.join(', ')}`,
+    );
+  }
+
   return {
     enabled: process.env.RETENTION_ENABLED === 'true',
-    strategy: (process.env.RETENTION_STRATEGY || 'count') as 'count' | 'time',
-    count: parseInt(process.env.RETENTION_COUNT || '7', 10),
-    days: parseInt(process.env.RETENTION_DAYS || '30', 10),
-    daily: parseInt(process.env.RETENTION_DAILY || '7', 10),
-    weekly: parseInt(process.env.RETENTION_WEEKLY || '4', 10),
-    monthly: parseInt(process.env.RETENTION_MONTHLY || '3', 10),
+    strategy: strategy as RetentionStrategy,
+    count: getPositiveInt('RETENTION_COUNT', 7),
+    days: getPositiveInt('RETENTION_DAYS', 30),
+    daily: getPositiveInt('RETENTION_DAILY', 7),
+    weekly: getPositiveInt('RETENTION_WEEKLY', 4),
+    monthly: getPositiveInt('RETENTION_MONTHLY', 3),
   };
+}
+
+/**
+ * Read a positive integer from the environment
+ * Retention deletes everything beyond these limits, so invalid values must fail loudly.
+ */
+function getPositiveInt(name: string, defaultValue: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') {
+    return defaultValue;
+  }
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`Invalid ${name} "${raw}", expected a positive integer`);
+  }
+  return value;
 }
 
 /**
