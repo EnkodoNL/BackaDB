@@ -1,28 +1,15 @@
 import path from 'path';
-import { createWriteStream } from 'fs';
-import archiver from 'archiver';
+import { createReadStream, createWriteStream, openAsBlob } from 'fs';
+import { stat } from 'fs/promises';
+import { Readable, Writable } from 'stream';
+import { BlobReader, ZipReader, ZipWriter, configure } from '@zip.js/zip.js';
 import logger from './logger';
 
-// Flag to track if encryption is available
-let encryptionAvailable = false;
-
-// Try to register the encrypted zip format
-try {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment, @typescript-eslint/no-var-requires
-  const ArchiverZipEncrypted = require('archiver-zip-encrypted');
-  archiver.registerFormat(
-    'zip-encrypted' as archiver.Format,
-    ArchiverZipEncrypted,
-  );
-  encryptionAvailable = true;
-  logger.info('Password-protected zip compression is available');
-} catch (error) {
-  logger.warn('Password-protected zip compression is not available: ' + error);
-  encryptionAvailable = false;
-}
+// Run codecs in-process; web workers add nothing for a single-file backup job
+configure({ useWebWorkers: false });
 
 /**
- * Create a zip file, optionally password-protected
+ * Create a zip file, optionally password-protected (AES-256)
  * @param inputPath Path to the file to compress
  * @param outputPath Path to save the compressed file
  * @param password Optional password for encryption
@@ -32,116 +19,68 @@ export async function compressFile(
   outputPath: string,
   password?: string,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      if (password) {
-        logger.info(
-          `Creating password-protected zip: ${inputPath} -> ${outputPath}`,
-        );
-      } else {
-        logger.info(`Creating zip: ${inputPath} -> ${outputPath}`);
-      }
+  if (password) {
+    logger.info(
+      `Creating password-protected zip: ${inputPath} -> ${outputPath}`,
+    );
+  } else {
+    logger.info(`Creating zip: ${inputPath} -> ${outputPath}`);
+  }
 
-      // Create a file to stream archive data to
-      const output = createWriteStream(outputPath);
+  try {
+    const zipWriter = new ZipWriter(
+      Writable.toWeb(createWriteStream(outputPath)),
+      {
+        level: 9,
+        ...(password ? { password, encryptionStrength: 3 as const } : {}),
+      },
+    );
 
-      // Create the appropriate archiver instance
-      let archive;
+    await zipWriter.add(
+      path.basename(inputPath),
+      Readable.toWeb(createReadStream(inputPath)) as ReadableStream<Uint8Array>,
+    );
+    await zipWriter.close();
 
-      // Use password protection if available and requested
-      if (password && encryptionAvailable) {
-        try {
-          archive = archiver('zip-encrypted' as archiver.Format, {
-            zlib: { level: 9 }, // Sets the compression level
-            encryptionMethod: 'aes256', // Use AES-256 encryption
-            password, // Set password for the zip file
-          });
-          logger.info('Using password-protected zip format');
-        } catch (error) {
-          logger.warn(
-            `Error creating encrypted archive, falling back to regular zip: ${error}`,
-          );
-          archive = archiver('zip', {
-            zlib: { level: 9 }, // Sets the compression level
-          });
-        }
-      } else {
-        // Use regular zip if no password or encryption not available
-        if (password && !encryptionAvailable) {
-          logger.warn(
-            'Password protection requested but not available, using regular zip',
-          );
-        }
-
-        archive = archiver('zip', {
-          zlib: { level: 9 }, // Sets the compression level
-        });
-      }
-
-      // Listen for all archive data to be written
-      output.on('close', () => {
-        if (password) {
-          logger.info(
-            `Password-protected zip created successfully: ${outputPath}`,
-          );
-        } else {
-          logger.info(`Zip created successfully: ${outputPath}`);
-        }
-        const bytes = archive.pointer();
-        const kilobytes = bytes / 1024;
-        const megabytes = bytes / (1024 * 1024);
-        logger.info(
-          `Total: ${megabytes.toFixed(1)}MB (${kilobytes.toFixed(0)}KB)`,
-        );
-
-        resolve();
-      });
-
-      // Good practice to catch warnings (ie stat failures and other non-blocking errors)
-      archive.on('warning', (err) => {
-        if (err.code === 'ENOENT') {
-          // Log warning
-          logger.warn(`Warning while creating zip: ${err}`);
-        } else {
-          // Reject on other errors
-          reject(err);
-        }
-      });
-
-      // Catch errors
-      archive.on('error', (err) => {
-        logger.error(`Error creating zip: ${err}`);
-        reject(err);
-      });
-
-      // Pipe archive data to the file
-      archive.pipe(output);
-
-      // Add the file to the archive
-      const fileName = path.basename(inputPath);
-      archive.file(inputPath, { name: fileName });
-
-      // Finalize the archive (ie we are done appending files but streams have to finish yet)
-      archive.finalize();
-    } catch (error) {
-      logger.error(`Error creating zip: ${error}`);
-      reject(error);
-    }
-  });
+    const bytes = (await stat(outputPath)).size;
+    logger.info(
+      `${password ? 'Password-protected zip' : 'Zip'} created successfully: ${outputPath}`,
+    );
+    logger.info(
+      `Total: ${(bytes / (1024 * 1024)).toFixed(1)}MB (${(bytes / 1024).toFixed(0)}KB)`,
+    );
+  } catch (error) {
+    logger.error(`Error creating zip: ${error}`);
+    throw error;
+  }
 }
 
 /**
- * Decompress a file
- * Note: This is a placeholder function. For extraction, you would need to use
- * a library that supports extracting zip files, potentially with password protection.
+ * Extract the first file from a zip archive
+ * @param inputPath Path to the zip file
+ * @param outputPath Path to write the extracted file to
+ * @param password Optional password for encrypted archives
  */
 export async function decompressFile(
-  _inputPath: string,
-  _outputPath: string,
-  _password?: string,
+  inputPath: string,
+  outputPath: string,
+  password?: string,
 ): Promise<void> {
-  // This is a placeholder. In a real implementation, you would use a library
-  // that supports extracting zip files, potentially with password protection.
-  logger.warn('Decompression is not implemented');
-  throw new Error('Decompression is not implemented');
+  const zipReader = new ZipReader(new BlobReader(await openAsBlob(inputPath)));
+
+  try {
+    const entry = (await zipReader.getEntries()).find(
+      (candidate) => !candidate.directory,
+    );
+    if (!entry || entry.directory) {
+      throw new Error(`No file found in zip: ${inputPath}`);
+    }
+
+    await entry.getData(Writable.toWeb(createWriteStream(outputPath)), {
+      password,
+    });
+    logger.info(`Extracted ${entry.filename} -> ${outputPath}`);
+  } finally {
+    await zipReader.close();
+  }
 }

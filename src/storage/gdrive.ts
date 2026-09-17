@@ -66,7 +66,7 @@ export class GoogleDriveStorageProvider implements StorageProvider {
           );
         } catch (error) {
           logger.error(`Error accessing Google Drive folder: ${error}`);
-          throw new Error('Invalid Google Drive folder ID');
+          throw new Error('Invalid Google Drive folder ID', { cause: error });
         }
       } else {
         logger.info(
@@ -348,7 +348,7 @@ export class GoogleDriveStorageProvider implements StorageProvider {
         });
 
         return true;
-      } catch (error) {
+      } catch {
         return false;
       }
     } catch (error) {

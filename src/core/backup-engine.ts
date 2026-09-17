@@ -135,7 +135,7 @@ export class BackupEngine {
 
     let tempDir: string | null = null;
     let backupFile: string | null = null;
-    let finalFile: string | null = null;
+    let finalFile: string | null;
 
     try {
       logger.defaultMeta = { database };

@@ -355,7 +355,7 @@ export class NextCloudStorageProvider implements StorageProvider {
         });
 
         return true;
-      } catch (error) {
+      } catch {
         return false;
       }
     } catch (error) {

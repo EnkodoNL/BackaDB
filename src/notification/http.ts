@@ -1,6 +1,6 @@
 import express from 'express';
 import http from 'http';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { Notifier, BackupResult, BackupStatus } from './notifier';
 import { NotificationConfig } from '../config';
 import logger from '../utils/logger';
@@ -24,7 +24,7 @@ export class HttpNotifier implements Notifier {
   constructor(config: NotificationConfig) {
     this.config = config;
     this.app = express();
-    this.token = config.httpToken || uuidv4();
+    this.token = config.httpToken || randomUUID();
   }
 
   /**

@@ -8,7 +8,8 @@ describe('Compression Utils', () => {
   let testFile: string;
   let compressedFile: string;
   let decompressedFile: string;
-  const testContent = 'This is a test file content for compression testing.';
+  const testContent =
+    'This is a test file content for compression testing.\n'.repeat(100);
 
   beforeAll(async () => {
     // Create temporary directory for test files
@@ -50,6 +51,27 @@ describe('Compression Utils', () => {
     // Verify decompressed content matches original
     const decompressedContent = fs.readFileSync(decompressedFile, 'utf8');
     expect(decompressedContent).toEqual(testContent);
+  });
+
+  it('should create and extract a password-protected zip', async () => {
+    const password = 'test-password-123';
+
+    await compressFile(testFile, compressedFile, password);
+    await decompressFile(compressedFile, decompressedFile, password);
+
+    const decompressedContent = fs.readFileSync(decompressedFile, 'utf8');
+    expect(decompressedContent).toEqual(testContent);
+  });
+
+  it('should throw an error when extracting with the wrong password', async () => {
+    await compressFile(testFile, compressedFile, 'test-password-123');
+
+    await expect(
+      decompressFile(compressedFile, decompressedFile, 'wrong-password'),
+    ).rejects.toThrow();
+    await expect(
+      decompressFile(compressedFile, decompressedFile),
+    ).rejects.toThrow();
   });
 
   it('should throw an error when decompressing an invalid file', async () => {

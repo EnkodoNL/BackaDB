@@ -100,7 +100,7 @@ export class RetentionManager {
         const timestamp = new Date(`${dateStr}T${timeStr.replace(/-/g, ':')}`);
 
         // Determine backup type
-        let type: 'daily' | 'weekly' | 'monthly' | 'unknown' = 'unknown';
+        let type: 'daily' | 'weekly' | 'monthly';
 
         // Check if it's a monthly backup (1st day of the month)
         if (timestamp.getDate() === 1) {

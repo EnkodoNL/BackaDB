@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-slim AS build
+FROM node:24-slim AS build
 
 # Set working directory
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN npm ci --ignore-scripts
 RUN npx tsc -p ./tsconfig.json
 
 # Production stage
-FROM node:18-slim
+FROM node:24-slim
 
 # Set working directory
 WORKDIR /app
